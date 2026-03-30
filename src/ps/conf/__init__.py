@@ -1,0 +1,10 @@
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = 8888
+VALID_API_KEY = "secret_x_api_key"
+QUEUE = "payments.new"
+DLQ = "payments.dlq"
+RABBITMQ_URL = "amqp://root:privetserver@rabbit-mq:5672/"
+API_KEY_NAME = "X-API-Key"
+WEBHOOK_RETRY_COUNT = 3
+PAYMENT_GATEWAY_RETRY_COUNT = 3
+POSTGRESS_URL = "postgresql+asyncpg://root:privetserver@database/payment"

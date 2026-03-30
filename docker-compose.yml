@@ -1,0 +1,105 @@
+networks:
+  payment-public:
+    driver: bridge
+
+services:
+  payment-image:
+    image: payment
+    build:
+      context: .
+      dockerfile: Dockerfile
+    deploy:
+      replicas: 0
+
+  payment:
+    image: payment
+    command: "payment"
+    restart: unless-stopped
+    depends_on:
+      - database
+      - alembic-upgrade
+      - rabbit-mq
+    ports:
+      - "8888:8888"
+    networks:
+      - payment-public
+      - default
+#    volumes:
+#      - "./src/ps:/app/lib/python3.14/site-packages/ps"
+
+  alembic-upgrade:
+    image: payment
+    entrypoint: "payment-alembic upgrade heads"
+    restart: on-failure
+    depends_on:
+      - database
+
+  database:
+    image: postgres:14.22
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "payment"
+      POSTGRES_USER: "root"
+      POSTGRES_PASSWORD: "privetserver"
+
+  rabbit-mq:
+    image: rabbitmq:4.3-rc-alpine
+#    image: rabbitmq:4.3-rc-management
+#    ports:
+#      - "15672:15672"
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "root"
+      RABBITMQ_DEFAULT_PASS: "privetserver"
+
+  payment-worker:
+    image: payment
+    command: "payment-worker"
+    restart: unless-stopped
+    depends_on:
+      - rabbit-mq
+#    volumes:
+#      - "./src/ps:/app/lib/python3.14/site-packages/ps"
+
+  payment-test-image:
+    image: payment-test
+    build:
+      context: .
+      dockerfile: tests/Dockerfile
+    deploy:
+      replicas: 0
+
+  payment-test-func:
+    image: payment-test
+    profiles:
+      - dev
+    entrypoint: 'tail -f /dev/null'
+    stop_grace_period: 1s
+    networks:
+      - payment-public
+#    volumes:
+#      - "./tests:/payment_app_test/tests"
+
+  payment-test-unit:
+    image: payment-test
+    profiles:
+      - dev
+    entrypoint: 'tail -f /dev/null'
+    stop_grace_period: 1s
+    environment:
+      - PYTHONPATH=/payment_app_test/src
+    working_dir: /payment_app_test
+#    volumes:
+#      - "./tests:/payment_app_test/tests"
+#      - "./src:/payment_app_test/src"
+
+  payment-webhook-mock:
+    image: payment-test
+    command: "uvicorn mocks.webhookprocessor:app --host 0.0.0.0 --port 9999"
+    restart: unless-stopped
+    profiles:
+      - dev
+#    volumes:
+#      - "./tests:/payment_app_test/tests"
+    ports:
+      - "9999:9999"
